@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing URL Detector</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛡️ Phishing URL Detector</h1>
+            <p class="subtitle">Protect yourself from malicious websites</p>
+        </header>
+
+        <main>
+            <div class="input-section">
+                <form id="urlForm">
+                    <div class="input-group">
+                        <input 
+                            type="text" 
+                            id="urlInput" 
+                            placeholder="Enter URL to check (e.g., https://example.com)" 
+                            required
+                            autocomplete="off"
+                        >
+                        <button type="submit" id="checkBtn">
+                            <span>Check URL</span>
+                            <span class="loader" id="loader" style="display: none;"></span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="resultSection" class="result-section" style="display: none;">
+                <div class="result-card" id="resultCard">
+                    <div class="result-header">
+                        <h2 id="resultTitle">Result</h2>
+                        <span id="resultIcon" class="result-icon"></span>
+                    </div>
+                    <div class="result-content">
+                        <div class="url-display">
+                            <strong>URL:</strong>
+                            <span id="checkedUrl" class="url-text"></span>
+                        </div>
+                        <div class="prediction">
+                            <div class="prediction-label">
+                                <span id="predictionText"></span>
+                            </div>
+                            <div class="confidence-bar-container">
+                                <div class="confidence-bar" id="confidenceBar"></div>
+                            </div>
+                            <div class="confidence-text">
+                                Confidence: <span id="confidenceValue"></span>%
+                            </div>
+                        </div>
+                        <div class="probabilities">
+                            <div class="prob-item">
+                                <span class="prob-label">Phishing:</span>
+                                <span id="phishingProb" class="prob-value"></span>
+                            </div>
+                            <div class="prob-item">
+                                <span class="prob-label">Legitimate:</span>
+                                <span id="legitimateProb" class="prob-value"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="errorSection" class="error-section" style="display: none;">
+                <div class="error-card">
+                    <span class="error-icon">⚠️</span>
+                    <p id="errorMessage"></p>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Phishing URL Detector | Powered by Machine Learning</p>
+        </footer>
+    </div>
+
+    <script>
+        const form = document.getElementById('urlForm');
+        const urlInput = document.getElementById('urlInput');
+        const checkBtn = document.getElementById('checkBtn');
+        const loader = document.getElementById('loader');
+        const resultSection = document.getElementById('resultSection');
+        const errorSection = document.getElementById('errorSection');
+        const resultCard = document.getElementById('resultCard');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = urlInput.value.trim();
+            if (!url) return;
+
+            // Show loading state
+            checkBtn.disabled = true;
+            loader.style.display = 'inline-block';
+            resultSection.style.display = 'none';
+            errorSection.style.display = 'none';
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'An error occurred');
+                }
+
+                // Display results
+                displayResult(data);
+            } catch (error) {
+                displayError(error.message);
+            } finally {
+                checkBtn.disabled = false;
+                loader.style.display = 'none';
+            }
+        });
+
+        function displayResult(data) {
+            const isPhishing = data.prediction === 'Phishing';
+            
+            // Update result card
+            document.getElementById('checkedUrl').textContent = data.url;
+            document.getElementById('predictionText').textContent = data.prediction;
+            document.getElementById('confidenceValue').textContent = data.confidence;
+            document.getElementById('phishingProb').textContent = data.phishing_probability + '%';
+            document.getElementById('legitimateProb').textContent = data.legitimate_probability + '%';
+
+            // Update styling based on prediction
+            resultCard.className = 'result-card ' + (isPhishing ? 'phishing' : 'legitimate');
+            
+            const resultIcon = document.getElementById('resultIcon');
+            resultIcon.textContent = isPhishing ? '🚨' : '✅';
+
+            // Update confidence bar
+            const confidenceBar = document.getElementById('confidenceBar');
+            confidenceBar.style.width = data.confidence + '%';
+            confidenceBar.className = 'confidence-bar ' + (isPhishing ? 'phishing' : 'legitimate');
+
+            // Show result section
+            resultSection.style.display = 'block';
+            errorSection.style.display = 'none';
+        }
+
+        function displayError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            errorSection.style.display = 'block';
+            resultSection.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
